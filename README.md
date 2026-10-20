@@ -30,8 +30,10 @@ make gateway                              # 터미널 2 : jev-lite :9000
 make evaluate                             # 터미널 3
 ```
 - `train` 그룹(torch)은 GPU 장비에서만 설치하세요. macOS 에서는 `uv sync` 로 게이트웨이·평가·데이터 스크립트만 설치되고 vLLM 은 제외됩니다(Intel Mac 은 torch 휠이 없음).
+- **Windows 네이티브**: `uv sync` / `uv sync --group train` 모두 동작합니다(torch 는 PyTorch cu128 인덱스에서 CUDA 빌드로 설치). 단 vLLM 은 Linux 전용이라 `make serve` 는 WSL2 에서 실행해야 하고, `make` 가 없으면 Makefile 의 명령을 직접 입력하세요(예: `uv run -m jev_lite.train --train data/train.jsonl --eval data/eval.jsonl`).
 - 직접 실행: `uv run -m jev_lite.train --epochs 5`, `uv run uvicorn jev_lite.server:app --port 9000`
 - 학습과 서빙을 동시에 돌리지 마세요(VRAM).
+- Windows 콘솔에서 한글 로그가 깨지면 `PYTHONUTF8=1` 을 설정하세요 (`jev_lite` 모듈을 통한 실행은 자동으로 UTF-8 로 전환됩니다).
 - `make train` / `make serve` 는 시작 전에 CUDA를 점검하고 GPU 정보를 로깅합니다(`make check` 로 단독 실행 가능). CUDA가 없으면 계속할지 묻고, 비대화형 환경에서는 중단합니다(강제 진행: `JEV_ALLOW_NO_CUDA=1`). CPU로 학습하면 FP32로 전환됩니다.
 
 호출 예:

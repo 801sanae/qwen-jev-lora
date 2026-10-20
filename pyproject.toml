@@ -26,7 +26,18 @@ serve = [
 [tool.uv]
 # train(torch)은 GPU 장비에서만: `uv sync --group train`
 default-groups = ["serve"]
-environments = ["sys_platform == 'linux'", "sys_platform == 'darwin'"]
+# lock 이 지원하는 플랫폼. 여기 없는 OS 에서는 `uv sync` 가 거부된다.
+environments = ["sys_platform == 'linux'", "sys_platform == 'win32'", "sys_platform == 'darwin'"]
+
+# PyPI 의 Windows torch 휠은 CPU 전용이라, win32 에서는 PyTorch CUDA 인덱스에서 받는다.
+# (Linux 는 PyPI 휠에 CUDA 가 포함되어 있으므로 그대로 둔다)
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cu128", marker = "sys_platform == 'win32'" }]
 
 [build-system]
 requires = ["uv_build>=0.8,<0.12"]

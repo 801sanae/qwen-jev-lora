@@ -9,13 +9,16 @@ p.add_argument("--url", default="http://127.0.0.1:8000/v1/chat/completions")
 p.add_argument("--model", default="qwen-jev-custom")
 a = p.parse_args()
 
-rows = [json.loads(l) for l in open(a.data, encoding="utf-8") if l.strip()]
+with open(a.data, encoding="utf-8") as f:
+    rows = [json.loads(l) for l in f if l.strip()]
 preds = []
 with httpx.Client(timeout=30) as c:
     for r in rows:
         msgs, gold = r["messages"][:-1], r["messages"][-1]["content"]
-        body = c.post(a.url, json={"model": a.model, "messages": msgs, "max_tokens": 1,
-                                   "temperature": 0, "logprobs": True, "top_logprobs": 5}).json()
+        resp = c.post(a.url, json={"model": a.model, "messages": msgs, "max_tokens": 1,
+                                   "temperature": 0, "logprobs": True, "top_logprobs": 5})
+        resp.raise_for_status()
+        body = resp.json()
         prob, cov = p_yes(body["choices"][0]["logprobs"]["content"][0]["top_logprobs"])
         preds.append((prob, 1 if gold == "Y" else 0, cov))
 

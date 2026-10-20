@@ -1,5 +1,5 @@
 """Interface: Jev 호환 POST /v1/systemone  ->  vLLM chat.completions(max_tokens=1, logprobs).
-실행: uvicorn src.jev_lite.server:app --port 9000
+실행: uv run uvicorn jev_lite.server:app --host 127.0.0.1 --port 9000
 """
 import asyncio, os
 from typing import Any, Literal
