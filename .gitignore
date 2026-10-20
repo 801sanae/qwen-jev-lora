@@ -6,3 +6,5 @@ merged-model/
 data/train.jsonl
 data/eval.jsonl
 *.log
+
+.serena

@@ -9,7 +9,7 @@ p.add_argument("--adapter", default="./adapter")
 p.add_argument("--out", default="./merged-model")
 a = p.parse_args()
 
-base = AutoModelForCausalLM.from_pretrained(a.model, torch_dtype=torch.float32, device_map="cpu")
+base = AutoModelForCausalLM.from_pretrained(a.model, dtype=torch.float32, device_map="cpu")
 merged = PeftModel.from_pretrained(base, a.adapter).merge_and_unload().to(torch.float16)
 merged.save_pretrained(a.out, safe_serialization=True)
 AutoTokenizer.from_pretrained(a.adapter).save_pretrained(a.out)

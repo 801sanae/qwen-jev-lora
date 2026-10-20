@@ -8,6 +8,8 @@ from datasets import load_dataset
 from peft import LoraConfig, get_peft_model
 from transformers import AutoModelForCausalLM, AutoTokenizer, Trainer, TrainingArguments
 
+from .preflight import require_cuda
+
 p = argparse.ArgumentParser()
 p.add_argument("--model", default="Qwen/Qwen2.5-0.5B-Instruct")
 p.add_argument("--train", default="data/train.jsonl")
@@ -18,12 +20,13 @@ p.add_argument("--epochs", type=float, default=3)
 p.add_argument("--lr", type=float, default=2e-4)
 p.add_argument("--rank", type=int, default=16)
 args = p.parse_args()
+use_cuda = require_cuda("LoRA 학습")  # CPU 진행 시 FP16 AMP 불가 -> FP32
 
 tok = AutoTokenizer.from_pretrained(args.model)
 if tok.pad_token_id is None:
     tok.pad_token = tok.eos_token
 
-model = AutoModelForCausalLM.from_pretrained(args.model, torch_dtype=torch.float16, attn_implementation="eager")
+model = AutoModelForCausalLM.from_pretrained(args.model, dtype=torch.float16 if use_cuda else torch.float32, attn_implementation="eager")
 model.config.use_cache = False
 model.enable_input_require_grads()  # gradient checkpointing + PEFT
 model = get_peft_model(model, LoraConfig(
@@ -37,8 +40,8 @@ model.print_trainable_parameters()
 
 def encode(ex):
     msgs = ex["messages"]
-    prompt = tok.apply_chat_template(msgs[:-1], tokenize=True, add_generation_prompt=True)
-    full = tok.apply_chat_template(msgs, tokenize=True, add_generation_prompt=False)
+    prompt = tok.apply_chat_template(msgs[:-1], tokenize=True, add_generation_prompt=True, return_dict=False)
+    full = tok.apply_chat_template(msgs, tokenize=True, add_generation_prompt=False, return_dict=False)
     assert full[:len(prompt)] == prompt, "chat template prefix 불일치"
     if len(full) > args.max_length:  # 앞쪽 STATE를 자르면 정답 근거가 사라지므로 행 자체를 버림
         return {"input_ids": [], "attention_mask": [], "labels": []}
@@ -71,8 +74,8 @@ Trainer(
     model=model, train_dataset=train_ds, eval_dataset=eval_ds, data_collator=collate,
     args=TrainingArguments(
         output_dir="./checkpoints", per_device_train_batch_size=4, gradient_accumulation_steps=4,
-        learning_rate=args.lr, num_train_epochs=args.epochs, warmup_ratio=0.05, lr_scheduler_type="cosine",
-        fp16=True, gradient_checkpointing=True, gradient_checkpointing_kwargs={"use_reentrant": False},
+        learning_rate=args.lr, num_train_epochs=args.epochs, warmup_steps=0.05, lr_scheduler_type="cosine",
+        fp16=use_cuda, gradient_checkpointing=True, gradient_checkpointing_kwargs={"use_reentrant": False},
         logging_steps=5, eval_strategy="epoch" if eval_ds else "no", save_strategy="no",
         report_to="none", seed=42),
 ).train()

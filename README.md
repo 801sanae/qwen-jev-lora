@@ -8,28 +8,32 @@ docs/        원본 분석·가이드 문서
 prompts/     상위 LLM용 합성 데이터 생성 프롬프트
 data/        raw/train/eval jsonl (train·eval 은 gitignore)
 scripts/     샘플 생성, split, vLLM 실행
-src/jev_lite/
+pyproject.toml / uv.lock  의존성 그룹 train·serve
+src/jev_lite/      (uv_build 패키지, `import jev_lite`)
   template.py      [domain] STATE/CRITERIA/QUESTION 템플릿 (학습·추론 공용)
   scoring.py       [domain] top_logprobs -> P(Y)
   validate_data.py [app]    데이터 형식·균형 검증
   train.py / merge.py [infra] LoRA 학습·병합
   server.py        [interface] /v1/systemone -> vLLM
   evaluate.py      정확도·Brier·ECE
+  preflight.py     CUDA 점검·로깅, 불가 시 진행 여부 확인
 ```
 
 ## 빠른 시작 (WSL2 Ubuntu, RTX 2060 8GB)
+[uv](https://docs.astral.sh/uv/) 하나로 환경을 관리합니다 (`pyproject.toml` + `uv.lock`, Python 3.12).
 ```bash
-python3 -m venv .venv-train && source .venv-train/bin/activate
-pip install -r requirements-train.txt
+curl -LsSf https://astral.sh/uv/install.sh | sh
+uv sync --group train                     # serve(기본) + train 의존성을 .venv 에 설치
 make sample validate train merge          # 형식 확인용 샘플
-deactivate
-
-python3 -m venv .venv-serve && source .venv-serve/bin/activate
-pip install -r requirements-serve.txt
 make serve                                # 터미널 1 : vLLM :8000
 make gateway                              # 터미널 2 : jev-lite :9000
 make evaluate                             # 터미널 3
 ```
+- `train` 그룹(torch)은 GPU 장비에서만 설치하세요. macOS 에서는 `uv sync` 로 게이트웨이·평가·데이터 스크립트만 설치되고 vLLM 은 제외됩니다(Intel Mac 은 torch 휠이 없음).
+- 직접 실행: `uv run -m jev_lite.train --epochs 5`, `uv run uvicorn jev_lite.server:app --port 9000`
+- 학습과 서빙을 동시에 돌리지 마세요(VRAM).
+- `make train` / `make serve` 는 시작 전에 CUDA를 점검하고 GPU 정보를 로깅합니다(`make check` 로 단독 실행 가능). CUDA가 없으면 계속할지 묻고, 비대화형 환경에서는 중단합니다(강제 진행: `JEV_ALLOW_NO_CUDA=1`). CPU로 학습하면 FP32로 전환됩니다.
+
 호출 예:
 ```bash
 curl -s localhost:9000/v1/systemone -H 'Content-Type: application/json' -d '{
@@ -40,7 +44,7 @@ curl -s localhost:9000/v1/systemone -H 'Content-Type: application/json' -d '{
 
 ## 실제 데이터 만들기
 1. `prompts/data_generation_prompt.md`의 도메인·개수를 채워 상위 LLM에 요청 (도메인당 최소 수백 행 권장)
-2. 결과를 `data/raw.jsonl`에 합치고 `python scripts/split.py` → `make validate`
+2. 결과를 `data/raw.jsonl`에 합치고 `uv run scripts/split.py` → `make validate`
 3. **학습 템플릿과 서빙 템플릿(`template.py`)이 1글자라도 다르면 성능이 무너집니다.** 생성 데이터도 같은 포맷인지 검증하세요.
 
 ## 원본 가이드 대비 수정 사항

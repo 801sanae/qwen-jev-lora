@@ -1,0 +1,33 @@
+[project]
+name = "jev-lite"
+version = "0.1.0"
+description = "Qwen2.5-0.5B LoRA 기반 Jev 스타일 System-1(Y/N) 판정 모델 학습·서빙"
+readme = "README.md"
+requires-python = ">=3.10,<3.13"
+dependencies = []
+
+[dependency-groups]
+train = [
+    "torch",
+    "transformers>=5",
+    "peft>=0.12",
+    "accelerate",
+    "datasets",
+]
+serve = [
+    # vLLM 은 Linux(WSL2) 전용. macOS 에서는 게이트웨이/평가 스크립트만 설치된다.
+    "vllm; sys_platform == 'linux'",
+    "fastapi",
+    "uvicorn",
+    "httpx",
+    "pydantic>=2",
+]
+
+[tool.uv]
+# train(torch)은 GPU 장비에서만: `uv sync --group train`
+default-groups = ["serve"]
+environments = ["sys_platform == 'linux'", "sys_platform == 'darwin'"]
+
+[build-system]
+requires = ["uv_build>=0.8,<0.12"]
+build-backend = "uv_build"

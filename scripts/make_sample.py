@@ -1,6 +1,6 @@
 """형식 확인용 합성 샘플 생성 (실데이터 아님). 실제 학습은 prompts/ 로 상위 LLM에서 수백~수천 행 생성."""
-import json, sys
-sys.path.insert(0, "src")
+import json
+
 from jev_lite.template import render_prompt
 
 C = {"true": "입원일수가 3일 이상이고 계약 후 90일 면책기간이 지난 경우",
