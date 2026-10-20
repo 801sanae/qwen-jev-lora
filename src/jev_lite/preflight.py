@@ -53,7 +53,13 @@ def confirm_continue() -> bool:
 
 def require_cuda(purpose: str) -> bool:
     """CUDA 가능 -> True. 불가 시 사용자에게 묻고, 승인하면 False(CPU 진행), 거부하면 exit(1)."""
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s [preflight] %(message)s")
+    # 루트 로거가 아니라 jev_lite 로거에만 핸들러를 단다 (루트에 달면 httpx/huggingface 의 HTTP 로그까지 전부 찍힘)
+    pkg = logging.getLogger("jev_lite")
+    if not pkg.handlers:
+        h = logging.StreamHandler()
+        h.setFormatter(logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s"))
+        pkg.addHandler(h)
+        pkg.setLevel(logging.INFO)
     if check_cuda():
         log.info("CUDA 사용 가능 -> %s 시작", purpose)
         return True
